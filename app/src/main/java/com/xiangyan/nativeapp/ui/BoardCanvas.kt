@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntSize
 import com.xiangyan.nativeapp.game.GameState
+import com.xiangyan.nativeapp.game.BoardRules
 import com.xiangyan.nativeapp.game.Side
 import com.xiangyan.nativeapp.game.Square
 import kotlin.math.roundToInt
@@ -81,6 +82,10 @@ private fun DrawScope.drawBoard(state: GameState) {
     state.pieces.forEach { piece ->
         val shown = piece.square.toDisplaySquare(state.humanSide)
         val center = Offset(p + shown.col * dx, p + shown.row * dy); val pieceColor = if (piece.side == Side.Red) red else ink
+        if (piece.type == com.xiangyan.nativeapp.game.PieceType.General && BoardRules.isInCheck(state, piece.side)) {
+            drawCircle(red.copy(alpha = .20f), radius = minOf(dx, dy) * .53f, center = center)
+            drawCircle(red, radius = minOf(dx, dy) * .53f, center = center, style = androidx.compose.ui.graphics.drawscope.Stroke(3.2f))
+        }
         drawCircle(Color(0xFFFFF6E6), radius = minOf(dx, dy) * .405f, center = center); drawCircle(pieceColor, radius = minOf(dx, dy) * .405f, center = center, style = androidx.compose.ui.graphics.drawscope.Stroke(2.2f))
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = if (piece.side == Side.Red) 0xFFB7362C.toInt() else 0xFF263229.toInt(); textSize = minOf(dx, dy) * .48f; textAlign = Paint.Align.CENTER; typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD) }
         val baseline = center.y - (paint.ascent() + paint.descent()) / 2f; drawContext.canvas.nativeCanvas.drawText(piece.glyph, center.x, baseline, paint)
