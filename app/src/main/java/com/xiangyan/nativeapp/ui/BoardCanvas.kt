@@ -58,10 +58,9 @@ private fun DrawScope.drawBoard(state: GameState) {
     val p = size.width * .058f; val dx = (size.width - 2 * p) / 8f; val dy = (size.height - 2 * p) / 9f
     for (row in 0..9) drawLine(grid, Offset(p, p + row * dy), Offset(size.width - p, p + row * dy), strokeWidth = 1.5f)
     for (col in 0..8) { drawLine(grid, Offset(p + col * dx, p), Offset(p + col * dx, p + 4 * dy), strokeWidth = 1.5f); drawLine(grid, Offset(p + col * dx, p + 5 * dy), Offset(p + col * dx, size.height - p), strokeWidth = 1.5f) }
-    drawLine(grid, Offset(p, p), Offset(p + 2 * dx, p + 2 * dy), strokeWidth = 1.5f); drawLine(grid, Offset(p + 2 * dx, p), Offset(p, p + 2 * dy), strokeWidth = 1.5f)
-    drawLine(grid, Offset(p + 6 * dx, p), Offset(p + 8 * dx, p + 2 * dy), strokeWidth = 1.5f); drawLine(grid, Offset(p + 8 * dx, p), Offset(p + 6 * dx, p + 2 * dy), strokeWidth = 1.5f)
-    drawLine(grid, Offset(p, p + 7 * dy), Offset(p + 2 * dx, p + 9 * dy), strokeWidth = 1.5f); drawLine(grid, Offset(p + 2 * dx, p + 7 * dy), Offset(p, p + 9 * dy), strokeWidth = 1.5f)
-    drawLine(grid, Offset(p + 6 * dx, p + 7 * dy), Offset(p + 8 * dx, p + 9 * dy), strokeWidth = 1.5f); drawLine(grid, Offset(p + 8 * dx, p + 7 * dy), Offset(p + 6 * dx, p + 9 * dy), strokeWidth = 1.5f)
+    // 九宫位于将/帅与士/仕所在的中路三列（列 3–5），上下各 3×3 格。
+    drawLine(grid, Offset(p + 3 * dx, p), Offset(p + 5 * dx, p + 2 * dy), strokeWidth = 1.5f); drawLine(grid, Offset(p + 5 * dx, p), Offset(p + 3 * dx, p + 2 * dy), strokeWidth = 1.5f)
+    drawLine(grid, Offset(p + 3 * dx, p + 7 * dy), Offset(p + 5 * dx, p + 9 * dy), strokeWidth = 1.5f); drawLine(grid, Offset(p + 5 * dx, p + 7 * dy), Offset(p + 3 * dx, p + 9 * dy), strokeWidth = 1.5f)
     drawContext.canvas.nativeCanvas.drawText("楚 河", p + 1.25f * dx, p + 4.62f * dy, Paint().apply { color = 0xFF765A3A.toInt(); textSize = dy * .42f; typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD); letterSpacing = .16f })
     drawContext.canvas.nativeCanvas.drawText("漢 界", p + 5.25f * dx, p + 4.62f * dy, Paint().apply { color = 0xFF765A3A.toInt(); textSize = dy * .42f; typeface = android.graphics.Typeface.create(android.graphics.Typeface.SERIF, android.graphics.Typeface.BOLD); letterSpacing = .16f })
     // 最近一步：玉绿色空心圈表示起点，朱砂色实心底与描边表示当前落点。

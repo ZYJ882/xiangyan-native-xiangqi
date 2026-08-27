@@ -1,6 +1,6 @@
 # 象研局 Android Native
 
-这是一个可由 Android Studio 打开的**原生安卓工程**。它使用 Kotlin、Jetpack Compose 与 Pikafish UCI 原生引擎，当前版本为 **0.4.3（versionCode 7）**，产物是仅供测试安装的 `app-debug.apk`。
+这是一个可由 Android Studio 打开的**原生安卓工程**。它使用 Kotlin、Jetpack Compose 与 Pikafish UCI 原生引擎，当前版本为 **0.4.4（versionCode 8）**，产物是仅供测试安装的 `app-debug.apk`。
 
 ## 已实现功能
 
