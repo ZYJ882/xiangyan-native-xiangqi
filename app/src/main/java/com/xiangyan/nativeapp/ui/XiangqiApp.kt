@@ -50,6 +50,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.xiangyan.nativeapp.engine.EngineProfile
 import com.xiangyan.nativeapp.game.GamePhase
 import com.xiangyan.nativeapp.game.GameState
+import com.xiangyan.nativeapp.game.Side
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -82,13 +83,26 @@ private fun GameScreen(
         Spacer(Modifier.height(19.dp))
         StatusStrip(state.message, state.phase)
         Spacer(Modifier.height(16.dp))
+        PlayerSideLabel("对手", state.humanSide.opposite(), isUser = false)
+        Spacer(Modifier.height(7.dp))
         BoardCanvas(state, onSquareTap)
+        Spacer(Modifier.height(7.dp))
+        PlayerSideLabel("你", state.humanSide, isUser = true)
         Spacer(Modifier.height(17.dp))
         GameControls(state.phase, onStart, onPause, onResume, onStop)
         Spacer(Modifier.height(16.dp))
         EnginePanel(profile, state)
         Spacer(Modifier.height(28.dp))
     }
+}
+
+@Composable
+private fun PlayerSideLabel(label: String, side: Side, isUser: Boolean) = Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+    Text(label, color = if (isUser) Vermilion else Jade, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+    Spacer(Modifier.width(7.dp))
+    Text("· ${if (side == Side.Red) "红方" else "黑方"}", color = Ink, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+    Spacer(Modifier.weight(1f))
+    Text(if (isUser) "棋盘下方" else "棋盘上方", color = Jade, fontSize = 9.sp)
 }
 
 @Composable
