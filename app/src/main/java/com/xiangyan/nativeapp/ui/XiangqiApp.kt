@@ -139,7 +139,7 @@ private fun GameControls(phase: GamePhase, onStart: () -> Unit, onPause: () -> U
 }
 
 @Composable private fun EnginePanel(profile: EngineProfile, state: GameState) = Surface(color = Ink, shape = RoundedCornerShape(4.dp), modifier = Modifier.fillMaxWidth()) {
-    Column(Modifier.padding(16.dp)) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Column { Text("本地引擎预算", color = Color(0xFFE8B3A5), fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold); Text(profile.label, color = Color.White, fontFamily = FontFamily.Serif, fontSize = 27.sp, fontWeight = FontWeight.Bold) }; Text(if (state.phase == GamePhase.Ready) "尚未加载" else "JNI · C++", color = Color(0xFFBBD2BD), fontSize = 10.sp, fontWeight = FontWeight.Bold) }
+    Column(Modifier.padding(16.dp)) { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Column { Text("本地引擎预算", color = Color(0xFFE8B3A5), fontSize = 10.sp, letterSpacing = 1.sp, fontWeight = FontWeight.Bold); Text(profile.label, color = Color.White, fontFamily = FontFamily.Serif, fontSize = 27.sp, fontWeight = FontWeight.Bold) }; Text(if (state.phase == GamePhase.Ready) "尚未加载" else "PIKAFISH · UCI", color = Color(0xFFBBD2BD), fontSize = 10.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(14.dp)); Row(Modifier.fillMaxWidth()) { Metric("时限", "${profile.timeBudgetMs}ms", Modifier.weight(1f)); Metric("深度", "${profile.depthCap}", Modifier.weight(1f)); Metric("线程", "${profile.threads}", Modifier.weight(1f)); Metric("Hash", "${profile.hashMb}M", Modifier.weight(1f)) }
         Spacer(Modifier.height(13.dp)); Text("AI 强度和完整规则请在右上角设置中查看。", color = Color(0xFFBEC9BE), fontSize = 10.sp)
     }
@@ -187,7 +187,8 @@ private fun profileDescription(profile: EngineProfile) = when (profile) { Engine
     SettingIntro("本软件的对局规则", "本应用为离线人机原型。所有开始、暂停和停止均由用户显式触发，应用不会在启动后自行运行 AI。")
     RuleSection("开始与先手", listOf("点击“开始对局 · 随机先手”后，系统随机分配你执红或执黑。", "红方遵从中国象棋规则先行；若你执黑，AI 会在点击开始后走红方第一步。", "未点击开始时，棋盘仅用于展示；不会加载引擎、不会搜索，也不能落子。"))
     RuleSection("暂停与停止", listOf("点击暂停会立即取消当前 AI 搜索并冻结棋盘；点击继续才会恢复。", "点击停止会取消搜索并结束本局，保留最后棋盘供查看；点击开始后会开启一局新的随机先手对局。"))
-    RuleSection("AI 强度", listOf("设置中的 AI 强度改变时间预算、搜索深度、线程与哈希表建议值。", "AI 思考时改变强度会先暂停，避免旧强度结果在新设置下落子。", "分析档仅适合用户主动拆棋；普通对局采用单主变化策略。"))
+    RuleSection("AI 强度", listOf("设置中的 AI 强度会实际传递给 Pikafish：时间预算、搜索深度、线程与哈希表。", "AI 思考时改变强度会先暂停，避免旧强度结果在新设置下落子。", "普通对局固定单主变化（MultiPV=1）；分析档仅适合用户主动拆棋。"))
+    RuleSection("引擎与权重许可", listOf("本应用使用 Pikafish UCI 引擎，并按照 GPL-3.0 公开对应源代码。", "内含 pikafish.nnue 权重仅限合法、非商业用途；不得将其用于在线作弊。完整来源和限制见仓库 NOTICE.md。"))
     RuleSection("当前规则引擎边界", listOf("当前版本已实现棋子的基础移动、吃子、随机先后手与可取消 AI 调度。", "将军、应将、将死、困毙、长将长捉及重复局面的赛事级自动裁决尚未完成；对局中请以规则说明为准并手动停止有争议局面。"))
 }
 

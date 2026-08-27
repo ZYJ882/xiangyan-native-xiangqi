@@ -1,5 +1,9 @@
 # 更新记录
 
+## 0.4.0 — 2026-08-28
+
+以非商业 GPL-3.0 路线集成 Pikafish `Pikafish-2026-01-02` UCI 引擎。APK 内含与该固定版本实际兼容的官方 `pikafish.nnue` 权重，首次人机对弈才从应用资源复制并启动引擎。完整的源代码、GPL 文本、权重校验值和非商业限制见 `third_party/Pikafish/`、`LICENSE` 与 `NOTICE.md`。
+
 ## 0.3.0 — 2026-08-27
 
 新增最近走子标记：玉绿色空心圈指示起点，朱砂色填充与描边指示落点。此版本的 APK 包元数据为 `versionCode 3`、`versionName 0.3.0`。

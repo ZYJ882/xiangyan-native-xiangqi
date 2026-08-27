@@ -9,22 +9,15 @@ plugins {
 android {
     namespace = "com.xiangyan.nativeapp"
     compileSdk = 35
-    ndkVersion = "27.3.13750724"
 
     defaultConfig {
         applicationId = "com.xiangyan.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        externalNativeBuild {
-            cmake {
-                cppFlags += listOf("-std=c++20", "-O3", "-fno-exceptions")
-                arguments += listOf("-DANDROID_STL=c++_static")
-            }
-        }
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
@@ -42,8 +35,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_1_8
     }
     buildFeatures { compose = true; buildConfig = true }
-    externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt"); version = "3.22.1" } }
-    packaging { jniLibs { useLegacyPackaging = false } }
+    packaging { jniLibs { useLegacyPackaging = true } }
 }
 
 kotlin {

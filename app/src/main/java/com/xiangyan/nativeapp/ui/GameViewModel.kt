@@ -11,6 +11,7 @@ import androidx.lifecycle.ViewModelProvider
 import com.xiangyan.nativeapp.engine.EngineController
 import com.xiangyan.nativeapp.engine.EngineProfile
 import com.xiangyan.nativeapp.game.BoardRules
+import com.xiangyan.nativeapp.game.FenCodec
 import com.xiangyan.nativeapp.game.GamePhase
 import com.xiangyan.nativeapp.game.GameState
 import com.xiangyan.nativeapp.game.Move
@@ -22,7 +23,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     var state by mutableStateOf(GameState.initial()); private set
     var profile by mutableStateOf(EngineProfile.Standard); private set
     private val main = Handler(Looper.getMainLooper())
-    private val engine = EngineController()
+    private val engine = EngineController(application.applicationContext)
 
     fun selectProfile(newProfile: EngineProfile) {
         profile = newProfile
@@ -35,6 +36,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     /** 每局随机分配用户阵营；红方依照中国象棋正式规则先行。 */
     fun startRandomGame() {
         engine.cancel()
+        engine.newGame()
         val humanSide = if (Random.nextBoolean()) Side.Red else Side.Black
         val initial = GameState.initial().copy(
             humanSide = humanSide,
@@ -85,15 +87,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun requestAiMove(base: GameState) {
-        val aiSide = base.humanSide.opposite()
-        val legal = BoardRules.legalMoves(base, aiSide)
-        if (legal.isEmpty()) { state = base.copy(phase = GamePhase.Finished, message = "AI 无合法走法 · 对局结束"); return }
         val thinking = base.copy(phase = GamePhase.Thinking, selected = null)
         state = thinking
-        val requestToken = engine.request(thinking.fingerprint(), legal.size, profile) { token, index -> main.post {
+        val requestToken = engine.request(FenCodec.encode(thinking), profile) { token, uci -> main.post {
             if (state.phase != GamePhase.Thinking || state.searchToken != token) return@post
-            val move = legal.getOrNull(index)
-            state = if (move == null) thinking.copy(phase = GamePhase.Finished, message = "AI 无合法走法 · 对局结束") else {
+            val move = uci?.let(FenCodec::decodeMove)
+            state = if (move == null) thinking.copy(phase = GamePhase.Paused, message = "Pikafish 未返回走法 · 请停止后重新开始") else {
                 val afterAi = applyMove(thinking, move, thinking.humanSide)
                 if (afterAi.phase == GamePhase.Finished) afterAi.copy(message = "AI 获胜 · 将已被吃掉") else afterAi.copy(phase = GamePhase.HumanTurn, message = "轮到你走 · ${sideName(thinking.humanSide)}方")
             }
