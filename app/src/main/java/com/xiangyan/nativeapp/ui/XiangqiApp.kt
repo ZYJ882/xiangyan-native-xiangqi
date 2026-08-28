@@ -24,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -62,7 +63,7 @@ fun XiangqiApp() {
     val vm: GameViewModel = viewModel(factory = remember(application) { GameViewModel.factory(application) })
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     MaterialTheme(colorScheme = lightColorScheme(primary = Vermilion, onPrimary = Color.White, background = Paper, surface = Paper, onSurface = Ink)) {
-        if (settingsOpen) SettingsScreen(vm.profile, vm::selectProfile) { settingsOpen = false }
+        if (settingsOpen) SettingsScreen(vm.profile, vm.soundEnabled, vm::selectProfile, vm::updateSoundEnabled) { settingsOpen = false }
         else GameScreen(vm.state, vm.profile, vm::onSquareTap, vm::startRandomGame, vm::pause, vm::resume, vm::stop) { settingsOpen = true }
     }
 }
@@ -162,7 +163,7 @@ private fun GameControls(phase: GamePhase, onStart: () -> Unit, onPause: () -> U
 @Composable private fun Metric(label: String, value: String, modifier: Modifier) = Column(modifier) { Text(label, color = Color(0xFF9FAE9E), fontSize = 9.sp); Text(value, color = Color(0xFFFFF6E6), fontFamily = FontFamily.Serif, fontSize = 17.sp, fontWeight = FontWeight.Bold) }
 
 @Composable
-private fun SettingsScreen(profile: EngineProfile, onProfile: (EngineProfile) -> Unit, onBack: () -> Unit) = Surface(modifier = Modifier.fillMaxSize(), color = Paper) {
+private fun SettingsScreen(profile: EngineProfile, soundEnabled: Boolean, onProfile: (EngineProfile) -> Unit, onSoundEnabled: (Boolean) -> Unit, onBack: () -> Unit) = Surface(modifier = Modifier.fillMaxSize(), color = Paper) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Column(Modifier.statusBarsPadding().fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -171,13 +172,22 @@ private fun SettingsScreen(profile: EngineProfile, onProfile: (EngineProfile) ->
         }
         TabRow(selectedTabIndex = tab, containerColor = Paper, contentColor = Vermilion) { listOf("AI 强度", "象棋规则", "软件规则").forEachIndexed { index, label -> Tab(selected = tab == index, onClick = { tab = index }, text = { Text(label, fontSize = 12.sp, fontWeight = if (tab == index) FontWeight.Bold else FontWeight.Medium) }) } }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(18.dp)) {
-            when (tab) { 0 -> StrengthSettings(profile, onProfile); 1 -> XiangqiRules(); else -> AppRules() }
+            when (tab) { 0 -> StrengthSettings(profile, soundEnabled, onProfile, onSoundEnabled); 1 -> XiangqiRules(); else -> AppRules() }
         }
     }
 }
 
-@Composable private fun StrengthSettings(selected: EngineProfile, onSelected: (EngineProfile) -> Unit) = Column {
+@Composable private fun StrengthSettings(selected: EngineProfile, soundEnabled: Boolean, onSelected: (EngineProfile) -> Unit, onSoundEnabled: (Boolean) -> Unit) = Column {
     SettingIntro("以时间预算定义强度", "强度影响每步思考时限、搜索深度、线程与置换表目标。切换强度不会自动开局；AI 正在思考时切换将使对局暂停。")
+    Surface(color = Color(0xFFFCF8F0), shape = RoundedCornerShape(3.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("棋局音效", color = Ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Text("落子、吃子、将军、终局与对局控制提示音", color = Jade, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+            Switch(checked = soundEnabled, onCheckedChange = onSoundEnabled)
+        }
+    }
     EngineProfile.entries.forEach { item -> Surface(color = if (selected == item) Color(0xFFFFE8E2) else Color(0xFFFCF8F0), shape = RoundedCornerShape(3.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 9.dp)) {
         Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) { FilterChip(selected = selected == item, onClick = { onSelected(item) }, label = { Text(item.label, fontWeight = FontWeight.Bold) }); Spacer(Modifier.width(13.dp)); Column(Modifier.weight(1f)) { Text(profileDescription(item), color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium); Text("${item.timeBudgetMs}ms · 深度 ${item.depthCap} · ${item.threads} 线程 · ${item.hashMb}MB", color = Jade, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp)) } }
     } }
@@ -206,6 +216,7 @@ private fun profileDescription(profile: EngineProfile) = when (profile) { Engine
     RuleSection("开始与先手", listOf("点击“开始对局 · 随机先手”后，系统随机分配你执红或执黑。", "红方遵从中国象棋规则先行；若你执黑，AI 会在点击开始后走红方第一步。", "未点击开始时，棋盘仅用于展示；不会加载引擎、不会搜索，也不能落子。"))
     RuleSection("暂停与停止", listOf("点击暂停会立即取消当前 AI 搜索并冻结棋盘；点击继续才会恢复。", "点击停止会取消搜索并结束本局，保留最后棋盘供查看；点击开始后会开启一局新的随机先手对局。"))
     RuleSection("AI 强度", listOf("设置中的 AI 强度会实际传递给 Pikafish：时间预算、搜索深度、线程与哈希表。", "AI 思考时改变强度会先暂停，避免旧强度结果在新设置下落子。", "普通对局固定单主变化（MultiPV=1）；分析档仅适合用户主动拆棋。"))
+    RuleSection("棋局音效", listOf("设置页可关闭或重新开启音效，选择会保存到本地；默认开启。", "落子、吃子、将军、终局、开始、暂停和停止使用短促提示音，不抢占其他应用的音频焦点。", "系统处于静音模式时应用自动不播放；音量由系统媒体/游戏音量统一控制。"))
     RuleSection("引擎与权重许可", listOf("本应用使用 Pikafish UCI 引擎，并按照 GPL-3.0 公开对应源代码。", "内含 pikafish.nnue 权重仅限合法、非商业用途；不得将其用于在线作弊。完整来源和限制见仓库 NOTICE.md。"))
     RuleSection("当前应用的实现边界", listOf("当前版本已实现基础棋子移动、合法吃子、随机先后手、将军检测、自将限制、将帅照面限制、将死/困毙提示、三次重复判和、连续将军判负及可取消 AI 调度。", "长捉等需要对具体行为和赛事规程作复杂归类的循环争议不由应用擅自推断；应用提示用于离线对弈，不替代正式比赛裁判规则。"))
 }

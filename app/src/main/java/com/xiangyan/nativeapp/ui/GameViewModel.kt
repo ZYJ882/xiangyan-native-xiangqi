@@ -9,6 +9,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.xiangyan.nativeapp.audio.GameSound
+import com.xiangyan.nativeapp.audio.GameSoundManager
 import com.xiangyan.nativeapp.engine.EngineController
 import com.xiangyan.nativeapp.engine.EngineProfile
 import com.xiangyan.nativeapp.game.BoardRules
@@ -24,8 +26,16 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private val settings = application.getSharedPreferences("xiangyan_settings", Context.MODE_PRIVATE)
     var state by mutableStateOf(GameState.initial()); private set
     var profile by mutableStateOf(restoreProfile()); private set
+    var soundEnabled by mutableStateOf(settings.getBoolean(PREF_SOUND_ENABLED, true)); private set
     private val main = Handler(Looper.getMainLooper())
     private val engine = EngineController(application.applicationContext)
+    private var soundManager: GameSoundManager? = null
+
+    fun updateSoundEnabled(enabled: Boolean) {
+        soundEnabled = enabled
+        settings.edit().putBoolean(PREF_SOUND_ENABLED, enabled).apply()
+        soundManager?.setEnabled(enabled)
+    }
 
     fun selectProfile(newProfile: EngineProfile) {
         profile = newProfile
@@ -46,17 +56,20 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             message = if (humanSide == Side.Red) "你执红先行 · 请走第一步" else "你执黑后手 · AI 正在走红方第一步…",
         )
         state = initial
+        play(GameSound.Start)
         if (humanSide == Side.Black) requestAiMove(initial)
     }
 
     fun pause() {
         if (state.phase !in setOf(GamePhase.HumanTurn, GamePhase.Thinking)) return
         engine.cancel(); state = state.copy(phase = GamePhase.Paused, selected = null, message = "对局已暂停 · 引擎搜索已取消")
+        play(GameSound.Pause)
     }
 
     fun resume() {
         if (state.phase != GamePhase.Paused) return
         val base = state.copy(selected = null)
+        play(GameSound.Start)
         if (base.turn == base.humanSide) state = base.copy(phase = GamePhase.HumanTurn, message = playerTurnMessage(base))
         else requestAiMove(base.copy(phase = GamePhase.Thinking, message = "继续对局 · AI 正在思考…"))
     }
@@ -64,6 +77,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     fun stop() {
         engine.cancel()
         state = state.copy(phase = GamePhase.Stopped, selected = null, message = "对局已停止 · 点击开始可重新随机先手")
+        play(GameSound.Stop)
     }
 
     fun onSquareTap(square: Square) {
@@ -87,11 +101,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
             state = current.copy(message = "该走法不合法：不能自将、照面或直接吃将")
             return
         }
+        play(if (current.pieceAt(square) == null) GameSound.Move else GameSound.Capture)
         val result = BoardRules.adjudicate(afterHuman)
         if (result != null) {
+            play(GameSound.Terminal)
             state = finish(afterHuman, result)
             return
         }
+        if (BoardRules.isInCheck(afterHuman, afterHuman.turn)) play(GameSound.Check)
         requestAiMove(afterHuman.copy(phase = GamePhase.Thinking, selected = null, message = if (BoardRules.isInCheck(afterHuman, afterHuman.turn)) "将军！AI 正在应将…" else "AI 正在按 ${profile.label} 强度思考…"))
     }
 
@@ -107,13 +124,29 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                 if (afterAi == null) {
                     thinking.copy(phase = GamePhase.Paused, message = "引擎走法未通过本地规则校验 · 请停止后重新开始")
                 } else {
+                    play(if (thinking.pieceAt(move.to) == null) GameSound.Move else GameSound.Capture)
                     val result = BoardRules.adjudicate(afterAi)
-                    if (result != null) finish(afterAi, result)
-                    else afterAi.copy(phase = GamePhase.HumanTurn, message = playerTurnMessage(afterAi))
+                    if (result != null) {
+                        play(GameSound.Terminal)
+                        finish(afterAi, result)
+                    }
+                    else {
+                        if (BoardRules.isInCheck(afterAi, afterAi.turn)) play(GameSound.Check)
+                        afterAi.copy(phase = GamePhase.HumanTurn, message = playerTurnMessage(afterAi))
+                    }
                 }
             }
         } }
         state = state.copy(searchToken = requestToken)
+    }
+
+    private fun play(sound: GameSound) {
+        if (!soundEnabled) return
+        val manager = soundManager ?: GameSoundManager(getApplication<Application>().applicationContext).also {
+            it.setEnabled(soundEnabled)
+            soundManager = it
+        }
+        manager.play(sound)
     }
 
     private fun finish(position: GameState, result: BoardRules.Adjudication): GameState {
@@ -130,10 +163,11 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private fun playerTurnMessage(position: GameState) = if (BoardRules.isInCheck(position, position.humanSide)) "将军！轮到你走 · 必须应将" else "轮到你走 · ${sideName(position.humanSide)}方"
     private fun sideName(side: Side) = if (side == Side.Red) "红" else "黑"
     private fun restoreProfile(): EngineProfile = settings.getString(PREF_ENGINE_PROFILE, EngineProfile.Standard.name).let { saved -> EngineProfile.entries.firstOrNull { it.name == saved } ?: EngineProfile.Standard }
-    override fun onCleared() { engine.close(); super.onCleared() }
+    override fun onCleared() { soundManager?.release(); engine.close(); super.onCleared() }
 
     companion object {
         private const val PREF_ENGINE_PROFILE = "engine_profile"
+        private const val PREF_SOUND_ENABLED = "sound_enabled"
         fun factory(application: Application) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST") override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T = GameViewModel(application) as T
         }
