@@ -31,21 +31,32 @@ data class GameState(
     val message: String = "点击「开始对局」随机决定先手",
     val moves: List<Move> = emptyList(),
     val searchToken: Long = 0L,
+    /** 按当前局面（含轮到谁走）记录历史；用于应用层重复局面裁判。 */
+    val positionHistory: List<Long> = emptyList(),
+    /** 与 positionHistory 对齐；记录该局面中正在被将军的一方，非将军为 null。 */
+    val checkHistory: List<Side?> = emptyList(),
 ) {
     fun pieceAt(square: Square) = pieces.firstOrNull { it.square == square }
+
     fun fingerprint(): Long = pieces.sortedBy { it.id }.fold(0x4F1BBCDCBFA54017L xor turn.ordinal.toLong()) { acc, piece ->
         val v = (piece.id * 131 + piece.square.row * 11 + piece.square.col + piece.type.ordinal * 17 + piece.side.ordinal * 29).toLong()
         (acc xor v) * 0x100000001B3L
     }
 
+    fun historyIncludingCurrent(): List<Long> = if (positionHistory.isEmpty()) listOf(fingerprint()) else positionHistory
+    fun checksIncludingCurrent(): List<Side?> = if (checkHistory.isEmpty()) listOf(null) else checkHistory
+
     companion object {
-        fun initial() = GameState(pieces = listOf(
-            Piece(0, Side.Black, PieceType.Chariot, Square(0, 0)), Piece(1, Side.Black, PieceType.Horse, Square(0, 1)), Piece(2, Side.Black, PieceType.Elephant, Square(0, 2)), Piece(3, Side.Black, PieceType.Advisor, Square(0, 3)), Piece(4, Side.Black, PieceType.General, Square(0, 4)), Piece(5, Side.Black, PieceType.Advisor, Square(0, 5)), Piece(6, Side.Black, PieceType.Elephant, Square(0, 6)), Piece(7, Side.Black, PieceType.Horse, Square(0, 7)), Piece(8, Side.Black, PieceType.Chariot, Square(0, 8)),
-            Piece(9, Side.Black, PieceType.Cannon, Square(2, 1)), Piece(10, Side.Black, PieceType.Cannon, Square(2, 7)),
-            Piece(11, Side.Black, PieceType.Soldier, Square(3, 0)), Piece(12, Side.Black, PieceType.Soldier, Square(3, 2)), Piece(13, Side.Black, PieceType.Soldier, Square(3, 4)), Piece(14, Side.Black, PieceType.Soldier, Square(3, 6)), Piece(15, Side.Black, PieceType.Soldier, Square(3, 8)),
-            Piece(16, Side.Red, PieceType.Chariot, Square(9, 0)), Piece(17, Side.Red, PieceType.Horse, Square(9, 1)), Piece(18, Side.Red, PieceType.Elephant, Square(9, 2)), Piece(19, Side.Red, PieceType.Advisor, Square(9, 3)), Piece(20, Side.Red, PieceType.General, Square(9, 4)), Piece(21, Side.Red, PieceType.Advisor, Square(9, 5)), Piece(22, Side.Red, PieceType.Elephant, Square(9, 6)), Piece(23, Side.Red, PieceType.Horse, Square(9, 7)), Piece(24, Side.Red, PieceType.Chariot, Square(9, 8)),
-            Piece(25, Side.Red, PieceType.Cannon, Square(7, 1)), Piece(26, Side.Red, PieceType.Cannon, Square(7, 7)),
-            Piece(27, Side.Red, PieceType.Soldier, Square(6, 0)), Piece(28, Side.Red, PieceType.Soldier, Square(6, 2)), Piece(29, Side.Red, PieceType.Soldier, Square(6, 4)), Piece(30, Side.Red, PieceType.Soldier, Square(6, 6)), Piece(31, Side.Red, PieceType.Soldier, Square(6, 8)),
-        ))
+        fun initial(): GameState {
+            val base = GameState(pieces = listOf(
+                Piece(0, Side.Black, PieceType.Chariot, Square(0, 0)), Piece(1, Side.Black, PieceType.Horse, Square(0, 1)), Piece(2, Side.Black, PieceType.Elephant, Square(0, 2)), Piece(3, Side.Black, PieceType.Advisor, Square(0, 3)), Piece(4, Side.Black, PieceType.General, Square(0, 4)), Piece(5, Side.Black, PieceType.Advisor, Square(0, 5)), Piece(6, Side.Black, PieceType.Elephant, Square(0, 6)), Piece(7, Side.Black, PieceType.Horse, Square(0, 7)), Piece(8, Side.Black, PieceType.Chariot, Square(0, 8)),
+                Piece(9, Side.Black, PieceType.Cannon, Square(2, 1)), Piece(10, Side.Black, PieceType.Cannon, Square(2, 7)),
+                Piece(11, Side.Black, PieceType.Soldier, Square(3, 0)), Piece(12, Side.Black, PieceType.Soldier, Square(3, 2)), Piece(13, Side.Black, PieceType.Soldier, Square(3, 4)), Piece(14, Side.Black, PieceType.Soldier, Square(3, 6)), Piece(15, Side.Black, PieceType.Soldier, Square(3, 8)),
+                Piece(16, Side.Red, PieceType.Chariot, Square(9, 0)), Piece(17, Side.Red, PieceType.Horse, Square(9, 1)), Piece(18, Side.Red, PieceType.Elephant, Square(9, 2)), Piece(19, Side.Red, PieceType.Advisor, Square(9, 3)), Piece(20, Side.Red, PieceType.General, Square(9, 4)), Piece(21, Side.Red, PieceType.Advisor, Square(9, 5)), Piece(22, Side.Red, PieceType.Elephant, Square(9, 6)), Piece(23, Side.Red, PieceType.Horse, Square(9, 7)), Piece(24, Side.Red, PieceType.Chariot, Square(9, 8)),
+                Piece(25, Side.Red, PieceType.Cannon, Square(7, 1)), Piece(26, Side.Red, PieceType.Cannon, Square(7, 7)),
+                Piece(27, Side.Red, PieceType.Soldier, Square(6, 0)), Piece(28, Side.Red, PieceType.Soldier, Square(6, 2)), Piece(29, Side.Red, PieceType.Soldier, Square(6, 4)), Piece(30, Side.Red, PieceType.Soldier, Square(6, 6)), Piece(31, Side.Red, PieceType.Soldier, Square(6, 8)),
+            ))
+            return base.copy(positionHistory = listOf(base.fingerprint()), checkHistory = listOf(null))
+        }
     }
 }

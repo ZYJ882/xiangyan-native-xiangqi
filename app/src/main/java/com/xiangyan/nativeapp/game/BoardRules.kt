@@ -1,20 +1,49 @@
 package com.xiangyan.nativeapp.game
 
 /**
- * 应用层完整约束“将帅不能受攻击”和“将帅不可照面”。Pikafish 仍是 AI 搜索的权威规则层，
- * 但 UI 也必须拒绝会使自己被将军的走法，才能保证传给引擎的 FEN 合法。
+ * 应用层完整约束棋子走法、将帅安全和局面裁判。
+ * Pikafish 仍负责搜索，但所有进入 UI 状态的走法都必须先经过这里复核。
  */
 object BoardRules {
-    fun legalMoves(state: GameState, side: Side): List<Move> = state.pieces.filter { it.side == side }.flatMap { piece ->
-        (0..9).flatMap { row -> (0..8).mapNotNull { col ->
-            val to = Square(row, col)
-            if (isLegalMove(state, piece, to)) Move(piece.square, to) else null
-        } }
+    enum class TerminalReason { Checkmate, Stalemate, ThreefoldRepetition, PerpetualCheck }
+
+    data class Adjudication(val reason: TerminalReason, val winner: Side? = null)
+
+    fun legalMoves(state: GameState, side: Side): List<Move> {
+        val position = if (state.turn == side) state else state.copy(turn = side)
+        return position.pieces.filter { it.side == side }.flatMap { piece ->
+            (0..9).flatMap { row -> (0..8).mapNotNull { col ->
+                val to = Square(row, col)
+                if (isLegalMove(position, piece, to)) Move(piece.square, to) else null
+            } }
+        }
     }
 
     fun isLegalMove(state: GameState, piece: Piece, to: Square): Boolean {
+        if (piece.side != state.turn) return false
+        // 中国象棋以“将死”结束，不允许把将/帅当作普通棋子直接吃掉。
+        if (state.pieceAt(to)?.type == PieceType.General) return false
         if (!isPseudoLegalMove(state, piece, to)) return false
         return !isInCheck(simulateMove(state, Move(piece.square, to)), piece.side)
+    }
+
+    /** 应用一着已经通过本地校验的走法，并更新可重复式裁判所需的历史。 */
+    fun applyLegalMove(state: GameState, move: Move): GameState? {
+        val moving = state.pieceAt(move.from) ?: return null
+        if (!isLegalMove(state, moving, move.to)) return null
+        val target = state.pieceAt(move.to)
+        if (target?.type == PieceType.General) return null
+        val pieces = state.pieces.filterNot { it.id == target?.id }
+            .map { if (it.id == moving.id) it.copy(square = move.to) else it }
+        val next = state.copy(
+            pieces = pieces,
+            turn = moving.side.opposite(),
+            selected = null,
+            moves = state.moves + move,
+        )
+        val positions = state.historyIncludingCurrent() + next.fingerprint()
+        val checks = state.checksIncludingCurrent() + checkTarget(next)
+        return next.copy(positionHistory = positions, checkHistory = checks)
     }
 
     fun isInCheck(state: GameState, side: Side): Boolean {
@@ -23,6 +52,38 @@ object BoardRules {
     }
 
     fun hasAnyLegalMove(state: GameState, side: Side): Boolean = legalMoves(state, side).isNotEmpty()
+
+    /**
+     * 应用级确定性裁判：无合法着法时判将死/困毙；同一轮到方局面三次出现判和，
+     * 若三次重复均为同一方被将，则判连续将军方负。长捉仍需赛事规则定义，应用不擅自推断。
+     */
+    fun adjudicate(state: GameState): Adjudication? {
+        val sideToMove = state.turn
+        if (!hasAnyLegalMove(state, sideToMove)) {
+            return if (isInCheck(state, sideToMove)) {
+                Adjudication(TerminalReason.Checkmate, sideToMove.opposite())
+            } else {
+                Adjudication(TerminalReason.Stalemate, sideToMove.opposite())
+            }
+        }
+
+        val current = state.fingerprint()
+        val positions = state.historyIncludingCurrent()
+        if (positions.count { it == current } < 3) return null
+        val checkTargets = state.checksIncludingCurrent()
+        val repeatedIndexes = positions.mapIndexedNotNull { index, fingerprint ->
+            if (fingerprint == current) index else null
+        }
+        val repeatedChecks = repeatedIndexes.mapNotNull { checkTargets.getOrNull(it) }.distinct()
+        return if (repeatedChecks.size == 1) {
+            val checkedSide = repeatedChecks.single()
+            Adjudication(TerminalReason.PerpetualCheck, checkedSide)
+        } else {
+            Adjudication(TerminalReason.ThreefoldRepetition, null)
+        }
+    }
+
+    private fun checkTarget(state: GameState): Side? = state.turn.takeIf { isInCheck(state, it) }
 
     private fun attacksSquare(state: GameState, attacker: Piece, target: Square): Boolean {
         if (attacker.type == PieceType.General && attacker.square.col == target.col && piecesBetween(state, attacker.square, target) == 0) return true
